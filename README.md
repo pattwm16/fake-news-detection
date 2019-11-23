@@ -1,4 +1,8 @@
 # fake-news-detection
 Training a neural net to detect fake news on social media.
 
-We had our first checkin on November 16th.
+## Background
+We are recreating the [EANN model](https://doi.org/10.1145/3219819.3219903) first outlined by Wang et al. at KDD.
+
+## Data
+Twitter image data: https://github.com/MKLab-ITI/image-verification-corpus
