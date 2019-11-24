@@ -6,3 +6,5 @@ We are recreating the [EANN model](https://doi.org/10.1145/3219819.3219903) firs
 
 ## Data
 Twitter image data: https://github.com/MKLab-ITI/image-verification-corpus
+
+Twitter text data: https://github.com/nishitpatel01/Fake_News_Detection
