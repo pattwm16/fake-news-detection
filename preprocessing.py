@@ -1,11 +1,18 @@
 # preprocessing
 # Will Patterson
 import pandas as pd
-from keras.preprocessing.text import Tokenizer
+from keras.preprocessing.text import Tokenizer, one_hot
 from keras.preprocessing.sequence import pad_sequences
+from keras.models import Sequential
+from keras.layers import Embedding, Flatten, Dense
 import keras
 import numpy as np
 from sklearn.model_selection import train_test_split
+import os
+import re
+from gensim.models import Word2Vec
+import api
+
 
 # DATA LAYOUT ----
 # Column 1: the ID of the statement ([ID].json).
@@ -34,6 +41,7 @@ valid_path = "liar_dataset/valid.tsv"
 words_to_keep = 9000
 sequence_length = 540
 
+
 header_names = ['ID', 'Label', 'Statement', 'Subjects', 'Speaker',
                 'Speaker Job', 'State info', 'Party Affiliation',
                 'Barely true count', 'False count', 'Half true count',
@@ -52,7 +60,9 @@ data = data.drop(labels=['Barely true count', 'False count', 'Half true count',
                 'Mostly true count', 'Pants on fire count', 'Label'], axis = 1)
 
 text = data["Statement"]
-data["Tokenized_Statement"] = text
+text = [re.split(r'\W+', i) for i in text]
+print(text[0:5])
+
 labels = data["Binary Label"]
 
 tokenizer = Tokenizer(num_words=words_to_keep)
@@ -67,17 +77,50 @@ word_index = tokenizer.word_index
 # print(length)
 
 data_pad = pad_sequences(sequences, maxlen=sequence_length)
-
 labels = keras.utils.to_categorical(np.asarray(labels))
-print('Shape of data tensor:', data_pad.shape)
-print('Shape of label tensor:', labels.shape)
 
 #data pad only has the statement column, and nothing else
 #figure out later how to include rest of features
 x_train, x_test, y_train, y_test = train_test_split(data_pad, labels, test_size=0.2)
 
-print(np.shape(x_train))
-print(np.shape(x_test))
-print(np.shape(y_train))
-print(np.shape(y_test))
+#thought maybe we could remove the topic of abortion and test on it
+# print(list(data["Subjects"]).count("abortion"))
+
+num_words = min(MAX_NUM_WORDS, len(word_index) + 1)
+embedding_matrix = np.zeros((num_words, EMBEDDING_DIM))
+for word, i in word_index.items():
+    if i >= MAX_NUM_WORDS:
+        continue
+    embedding_vector = embeddings_index.get(word)
+    if embedding_vector is not None:
+        # words not found in embedding index will be all-zeros.
+        embedding_matrix[i] = embedding_vector
+
+# load pre-trained word embeddings into an Embedding layer
+# note that we set trainable = False so as to keep the embeddings fixed
+embedding_layer = Embedding(num_words,
+                            EMBEDDING_DIM,
+                            embeddings_initializer=Constant(embedding_matrix),
+                            input_length=MAX_SEQUENCE_LENGTH,
+                            trainable=False)
+
+
+##Attempt at training our own embedding
+# model = Sequential()
+# model.add(Embedding(input_dim=len(word_index), output_dim=100, input_length=540))
+# model.add(Flatten())
+# model.add(Dense(2, activation='softmax'))
+#
+# model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['acc'])
+# print(model.summary())
+# model.fit(data_pad, labels, epochs=5)
+# loss, accuracy = model.evaluate(data_pad, labels)
+
+# print(accuracy)
+
+# output_array = model.predict(data_pad)
+# print(np.shape(output_array))
+
+# word2vec = Word2Vec(text, size=30, window=5, min_count=2, iter=30)
+# print(word2vec.wv["Boston"])
 
