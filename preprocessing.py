@@ -25,15 +25,7 @@ import re
 # -----
 
 def get_data(train_path, test_path, valid_path):
-    # load in pretrained embeddings
-    embeddings_index = {}
-    with open('glove.6B.100d.txt') as f:
-        for line in f:
-            word, coefs = line.split(maxsplit=1)
-            coefs = np.fromstring(coefs, 'f', sep=' ')
-            embeddings_index[word] = coefs
-
-    # parameters
+    # paramters
     words_to_keep = 4860
     sequence_length = 540
     embedding_dimension = 100
@@ -59,7 +51,7 @@ def get_data(train_path, test_path, valid_path):
     text = data["Statement"]
     text = [re.split(r'\W+', i) for i in text]
 
-    labels = data["Binary Label"]
+    labels = data[["Binary Label","Subjects"]]
 
     tokenizer = Tokenizer(num_words=words_to_keep)
     tokenizer.fit_on_texts(text)
@@ -73,15 +65,24 @@ def get_data(train_path, test_path, valid_path):
     # print(length)
 
     data_pad = pad_sequences(sequences, maxlen=sequence_length)
-    labels = keras.utils.to_categorical(np.asarray(labels))
 
-    # data pad only has the statement column, and nothing else
-    # figure out later how to include rest of features
+    # TODO: This must be changed to only look at first subject (before first comma)
+    #       You should use Regex or x.split(). We couldn't figure out what was wrong.
+    #       We want this to return only the first subject for each row, since some have
+    #       multiple subjects.
+    # unique_events = [ x.split(',')[0] for x in labels.Subjects.unique()]
+    # print("Unique Events", unique_events)
+    # print("Len unique events", len(unique_events))
+    # unique_events = len(unique_events)
+    unique_events = len(labels.Subjects.unique())
+
+    # TODO: One-hot encode subjects before returning (e.g have columns of length # of unique events)
+    #subject_labels = keras.utils.to_categorical(np.asarray(labels[1]))
+
+
+    # TODO: Make sure to update the labels inputs parameter in train_test_split to
+    #       have one hot encoded that you implemented above.
+
     x_train, x_test, y_train, y_test = train_test_split(data_pad, labels, test_size=0.2)
-    return x_train, x_test, y_train, y_test
 
-    # thought maybe we could remove the topic of abortion and test on it
-    # print(list(data["Subjects"]).count("abortion"))
-
-
-
+    return x_train, x_test, y_train[["Binary Label"]], y_test[["Binary Label"]], y_train[["Subjects"]], y_test[["Subjects"]], word_index, unique_events

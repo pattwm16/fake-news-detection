@@ -10,7 +10,20 @@ import os
 import re
 from keras.initializers import Constant
 
-def text_extract():
+def text_extract(x_train, x_test, y_train, y_test, word_index):
+    # parameters
+    words_to_keep = 4860
+    sequence_length = 540
+    embedding_dimension = 100
+
+    # load in pretrained embeddings
+    embeddings_index = {}
+    with open('glove.6B.100d.txt') as f:
+        for line in f:
+            word, coefs = line.split(maxsplit=1)
+            coefs = np.fromstring(coefs, 'f', sep=' ')
+            embeddings_index[word] = coefs
+
     num_words = min(words_to_keep, len(word_index) + 1)
     embedding_matrix = np.zeros((num_words, embedding_dimension))
     for word, i in word_index.items():
@@ -40,17 +53,5 @@ def text_extract():
         window = GlobalMaxPooling1D()(window)
         kernels.append(window)
     concat = concatenate(kernels)
-    preds = Dense(2, activation='softmax')(concat)
 
-    model = Model(sequence_input, preds)
-    model.compile(loss='categorical_crossentropy',
-                  optimizer='adam',
-                  metrics=['acc'])
-    print(model.summary())
-    model.fit(x_train, y_train,
-              batch_size=50,
-              epochs=5,
-              validation_data=(x_test, y_test))
-
-
-
+    return sequence_input, concat
