@@ -11,7 +11,7 @@ test_path = "liar_dataset/test.tsv"
 valid_path = "liar_dataset/valid.tsv"
 
 # appy get_data from preprocessing.py and call
-data_train, data_test, labels_train, labels_test, subjects_train, subjects_test, word_index, unique_events = get_data(train_path, test_path, valid_path)
+data_train, data_test, labels_train, labels_test, subjects_train, subjects_test, word_index, unique_events = get_data(train_path, test_path, valid_path, verbose=True)
 
 # apply text feature extractor (text_extract) from text_feature_extractor
 sequence_input, concat = text_extract(data_train, data_test, labels_train, labels_test, word_index)

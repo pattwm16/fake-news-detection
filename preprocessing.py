@@ -133,10 +133,3 @@ def get_data(train_path, test_path, valid_path, verbose=False):
 
     # need to return: data_train, data_test, labels_train, labels_test, subjects_train, subjects_test, word_index, unique_events
     return x_train, x_test, y_train[["Binary Label"]], y_test[["Binary Label"]], one_hot_y_train, one_hot_y_test, word_index, len(unique_events)
-
-# Used to test functionality, delete before pushing
-# path to training dataset
-train_path = "liar_dataset/train.tsv"
-test_path = "liar_dataset/test.tsv"
-valid_path = "liar_dataset/valid.tsv"
-get_data(train_path, test_path, valid_path, verbose=True)
