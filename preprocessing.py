@@ -30,16 +30,17 @@ def get_data(train_path, test_path, valid_path):
     sequence_length = 540
     embedding_dimension = 100
 
-    # read in data as pandas dataframe
-    train_data = pd.read_csv(train_path, sep='\t', header=None, names=header_names)
-    test_data = pd.read_csv(test_path, sep='\t', header=None, names=header_names)
-    valid_data = pd.read_csv(valid_path, sep='\t', header=None, names=header_names)
-
     # create header names for pandas dataframe
     header_names = ['ID', 'Label', 'Statement', 'Subjects', 'Speaker',
                     'Speaker Job', 'State info', 'Party Affiliation',
                     'Barely true count', 'False count', 'Half true count',
                     'Mostly true count', 'Pants on fire count', 'Context']
+
+    # read in data as pandas dataframe
+    train_data = pd.read_csv(train_path, sep='\t', header=None, names=header_names)
+    test_data = pd.read_csv(test_path, sep='\t', header=None, names=header_names)
+    valid_data = pd.read_csv(valid_path, sep='\t', header=None, names=header_names)
+
 
     # concatenate all data to be split after processing
     data = pd.concat([train_data, test_data, valid_data], axis=0)
