@@ -6,7 +6,7 @@ from keras.preprocessing.sequence import pad_sequences
 from keras.models import Sequential, Model
 from keras.layers import Embedding, Flatten, Dense
 from keras.layers import Input, GlobalMaxPooling1D
-from keras.layers import Conv1D, MaxPooling1D, Embedding
+from keras.layers import Conv1D, MaxPooling1D, Embedding, Concatenate, concatenate
 import keras
 import numpy as np
 from sklearn.model_selection import train_test_split
@@ -75,9 +75,9 @@ data = data.drop(labels=['Barely true count', 'False count', 'Half true count',
 
 text = data["Statement"]
 text = [re.split(r'\W+', i) for i in text]
-print(text[0:5])
 
 labels = data["Binary Label"]
+
 
 tokenizer = Tokenizer(num_words=words_to_keep)
 tokenizer.fit_on_texts(text)
@@ -115,46 +115,29 @@ for word, i in word_index.items():
 embedding_layer = Embedding(num_words,
                             embedding_dimension,
                             embeddings_initializer=Constant(embedding_matrix),
-                            input_length=words_to_keep,
+                            input_length=sequence_length,
                             trainable=False)
 
-sequence_input = Input(shape=(words_to_keep,), dtype='int32')
+num_filters = 128
+num_window = 10
+
+sequence_input = Input(shape=(sequence_length,), dtype='int32')
 embedded_sequences = embedding_layer(sequence_input)
-x = Conv1D(128, 5, activation='relu')(embedded_sequences)
-x = MaxPooling1D(5)(x)
-x = Conv1D(128, 5, activation='relu')(x)
-x = MaxPooling1D(5)(x)
-x = Conv1D(128, 5, activation='relu')(x)
-x = GlobalMaxPooling1D()(x)
-x = Dense(128, activation='relu')(x)
-preds = Dense(2, activation='softmax')(x)
+kernels = []
+for i in range(1, num_window):
+    window = Conv1D(filters=num_filters, kernel_size=i, activation='relu')(embedded_sequences)
+    window = GlobalMaxPooling1D()(window)
+    kernels.append(window)
+concat = concatenate(kernels)
+preds = Dense(2, activation='softmax')(concat)
 
 model = Model(sequence_input, preds)
 model.compile(loss='categorical_crossentropy',
-              optimizer='rmsprop',
+              optimizer='adam',
               metrics=['acc'])
-
+print(model.summary())
 model.fit(x_train, y_train,
-          batch_size=128,
-          epochs=10,
+          batch_size=50,
+          epochs=5,
           validation_data=(x_test, y_test))
 
-
-##Attempt at training our own embedding
-# model = Sequential()
-# model.add(Embedding(input_dim=len(word_index), output_dim=100, input_length=540))
-# model.add(Flatten())
-# model.add(Dense(2, activation='softmax'))
-#
-# model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['acc'])
-# print(model.summary())
-# model.fit(data_pad, labels, epochs=5)
-# loss, accuracy = model.evaluate(data_pad, labels)
-
-# print(accuracy)
-
-# output_array = model.predict(data_pad)
-# print(np.shape(output_array))
-
-# word2vec = Word2Vec(text, size=30, window=5, min_count=2, iter=30)
-# print(word2vec.wv["Boston"])
