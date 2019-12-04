@@ -11,12 +11,12 @@ import re
 from keras.initializers import Constant
 
 def text_extract(x_train, x_test, y_train, y_test, word_index):
-    # parameters
+    # hyperparameters
     words_to_keep = 4860
     sequence_length = 540
     embedding_dimension = 100
 
-    # load in pretrained embeddings
+    # load in pretrained embeddings from GLOVE
     embeddings_index = {}
     with open('glove.6B.100d.txt') as f:
         for line in f:
@@ -35,18 +35,23 @@ def text_extract(x_train, x_test, y_train, y_test, word_index):
             embedding_matrix[i] = embedding_vector
 
     # load pre-trained word embeddings into an Embedding layer
-    # note that we set trainable = False so as to keep the embeddings fixed
+    # NOTE: we set trainable = False so as to keep the embeddings fixed
     embedding_layer = Embedding(num_words,
                                 embedding_dimension,
                                 embeddings_initializer=Constant(embedding_matrix),
                                 input_length=sequence_length,
                                 trainable=False)
 
+    # Text Feature Extractor Model ---
+    # hyperparameters
     num_filters = 128
     num_window = 10
 
+    # Model Architecture
     sequence_input = Input(shape=(sequence_length,), dtype='int32')
     embedded_sequences = embedding_layer(sequence_input)
+    # this for loop constructs an arbitrary number of parallel conv1d layers
+    # with window size ranging from 1 to num_window
     kernels = []
     for i in range(1, num_window):
         window = Conv1D(filters=num_filters, kernel_size=i, activation='relu')(embedded_sequences)

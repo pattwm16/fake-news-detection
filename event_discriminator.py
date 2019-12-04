@@ -6,7 +6,7 @@ import tensorflow as tf
 class event_discriminator(tf.keras.layers.Layer):
     def __init__(self, hidden_size, event_num):
         super(event_discriminator, self).__init__()
-        
+
         # TODO: probably should be in main
         self.trade_off = 1
 
@@ -19,7 +19,7 @@ class event_discriminator(tf.keras.layers.Layer):
         self.fc_1 = tf.keras.layers.Dense(self.hidden_size, activation='relu')
         self.fc_2 = tf.keras.layers.Dense(self.event_num, activation='softmax')
         self.loss_func = tf.keras.losses.SparseCategoricalCrossentropy()
-    
+
     # takes in text+image (multi modal features) as input and return probabilities of being classified as each event
     @tf.function
     def call(self, multi_modal_feat_rep):
@@ -36,4 +36,3 @@ class event_discriminator(tf.keras.layers.Layer):
         prbs = self.call(multi_modal_feat_rep)
         loss = self.loss_func(labels,prbs)
         return tf.reduce_sum(loss)
-

@@ -10,21 +10,17 @@ train_path = "liar_dataset/train.tsv"
 test_path = "liar_dataset/test.tsv"
 valid_path = "liar_dataset/valid.tsv"
 
+# appy get_data from preprocessing.py and call
 data_train, data_test, labels_train, labels_test, subjects_train, subjects_test, word_index, unique_events = get_data(train_path, test_path, valid_path)
 
+# apply text feature extractor (text_extract) from text_feature_extractor
 sequence_input, concat = text_extract(data_train, data_test, labels_train, labels_test, word_index)
 
-# Fake news detector in functional form
-preds = Dense(1, activation='softmax')(concat)
-
+# NOTE: Since the size of the fake news detector was relatively small, we did
+# not create a new file for it.
+# Fake News Detector Layers ---
+preds = Dense(1, activation='softmax')(concat) # concat is out from text feature extractor (R^T)
 fake_news_detector = Model(sequence_input, preds, name="Fake News Detector")
-
-# Event Discriminator Layers
-hl_size = 120
-ed_fc1_out = Dense(hl_size, activation='relu')(concat)
-ed_fc2_out = Dense(unique_events, activation='softmax')(ed_fc1_out)
-
-event_discrim = Model(sequence_input, ed_fc2_out, name="Event Discriminator")
 
 # Compile and fit fake news detector
 # fake_news_detector.compile(loss='binary_crossentropy',
@@ -36,6 +32,13 @@ event_discrim = Model(sequence_input, ed_fc2_out, name="Event Discriminator")
 #           epochs=5,
 #           validation_data=(data_test, labels_test))
 
+# Event Discriminator Layers ---
+hl_size = 120 # TODO: Tune this hyperparameter
+# TODO: Implement GRL here (identity on forward, multiply by neg lambda on backprop)
+# HINT: See https://github.com/michetonu/gradient_reversal_keras_tf for implmentation
+ed_fc1_out = Dense(hl_size, activation='relu')(concat)
+ed_fc2_out = Dense(unique_events, activation='softmax')(ed_fc1_out)
+event_discrim = Model(sequence_input, ed_fc2_out, name="Event Discriminator")
 
 # Compile and fit the event discriminator
 event_discrim.compile(loss='sparse_categorical_crossentropy',
