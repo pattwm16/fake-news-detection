@@ -24,11 +24,6 @@ import re
 # Column 14: the context (venue / location of the speech or statement).
 # -----
 
-# path to training dataset
-train_path = "liar_dataset/train.tsv"
-test_path = "liar_dataset/test.tsv"
-valid_path = "liar_dataset/valid.tsv"
-
 def get_data(train_path, test_path, valid_path):
     # load in pretrained embeddings
     embeddings_index = {}

@@ -10,7 +10,7 @@ import os
 import re
 from keras.initializers import Constant
 
-def text_feature_extractor():
+def text_extract():
     num_words = min(words_to_keep, len(word_index) + 1)
     embedding_matrix = np.zeros((num_words, embedding_dimension))
     for word, i in word_index.items():
