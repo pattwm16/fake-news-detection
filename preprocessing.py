@@ -24,7 +24,22 @@ import re
 # Column 14: the context (venue / location of the speech or statement).
 # -----
 
-def get_data(train_path, test_path, valid_path):
+# Helper functions
+def stringify_list(lst):
+    """
+    takes a list of a data and returns a list of strins
+    :param data: data to be unified as a list
+    :returns: data as a list with each element as string
+    """
+    cleaned_lst = []
+    for elem in lst:
+        if type(elem) != str:
+            cleaned_lst.append(str(elem))
+        else:
+            cleaned_lst.append(elem)
+    return cleaned_lst
+
+def get_data(train_path, test_path, valid_path, verbose=False):
     # hyperparamters for tokenizer
     words_to_keep = 4860
     sequence_length = 540
@@ -80,25 +95,48 @@ def get_data(train_path, test_path, valid_path):
     # pad all sequences to be same length
     data_pad = pad_sequences(sequences, maxlen=sequence_length)
 
-    # TODO: This must be changed to only look at first subject (before first comma)
-    #       You should use Regex or x.split(). We couldn't figure out what was wrong.
-    #       We want this to return only the first subject for each row, since some have
-    #       multiple subjects.
-    # unique_events = [ x.split(',')[0] for x in labels.Subjects.unique()]
-    # print("Unique Events", unique_events)
-    # print("Len unique events", len(unique_events))
-    # unique_events = len(unique_events)
-    unique_events = len(labels.Subjects.unique())
+    # NOTE: stringify_list is defined above, it is needed as some values of
+    #       the "Subjects" column are of type float and cannot be split
+    # TODO: Fix SettingWithCopyWarning returned by this line
+    list_of_all_subj = [x.split(',')[0].lower() for x in stringify_list(labels.Subjects)]
+    labels["Subjects"] = list_of_all_subj
+    # this determines K from paper. Event discriminator is a K classification problem.
+    # NOTE: should be 142 unique events in total dataset
+    unique_events = list(set(labels["Subjects"]))
 
     # TODO: One-hot encode subjects before returning (e.g have columns of length # of unique events)
-    #subject_labels = keras.utils.to_categorical(np.asarray(labels[1]))
+    # create dictionary of subjects in entire dataset (142 keys)
+    dict_of_subjects = {i:unique_events[i] for i in range(0, len(unique_events))}
+    rev_dict_of_subjects = {v:k for k,v in dict_of_subjects.items()}
+    subbed_subjects = [rev_dict_of_subjects.get(item,item) for item in labels["Subjects"]]
+    labels["Subjects"] = subbed_subjects
 
 
     # TODO: Make sure to update the labels inputs parameter in train_test_split to
     #       have one hot encoded that you implemented above.
 
-    # 80/20 train/test split
+    # 80/20 train/test split where y_train/test is label data
     x_train, x_test, y_train, y_test = train_test_split(data_pad, labels, test_size=0.2)
 
+
+    one_hot_y_train = keras.utils.to_categorical(np.asarray(y_train["Subjects"]))
+    one_hot_y_test = keras.utils.to_categorical(np.asarray(y_test["Subjects"]))
+
+    # print out diagnostic data for preprocessing.py
+    if verbose:
+        print("Preprocessing run successfully")
+        print("|---------------------------------------------------|")
+        print("| Preprocessing run successfully")
+        print("| {} data points ({}/{} train/test split)".format(len(data_pad), len(x_train), len(x_test)))
+        print("| {} unique events in dataset".format(len(unique_events)))
+        print("|---------------------------------------------------|")
+
     # need to return: data_train, data_test, labels_train, labels_test, subjects_train, subjects_test, word_index, unique_events
-    return x_train, x_test, y_train[["Binary Label"]], y_test[["Binary Label"]], y_train[["Subjects"]], y_test[["Subjects"]], word_index, unique_events
+    return x_train, x_test, y_train[["Binary Label"]], y_test[["Binary Label"]], one_hot_y_train, one_hot_y_test, word_index, len(unique_events)
+
+# Used to test functionality, delete before pushing
+# path to training dataset
+train_path = "liar_dataset/train.tsv"
+test_path = "liar_dataset/test.tsv"
+valid_path = "liar_dataset/valid.tsv"
+get_data(train_path, test_path, valid_path, verbose=True)
