@@ -25,7 +25,7 @@ sequence_input, concat = text_extract(data_train, data_test, labels_train, label
 # NOTE: Since the size of the fake news detector was relatively small, we did
 # not create a new file for it.
 # Fake News Detector Layers ---
-preds = Dense(1, activation='softmax', name="fake_news_detector")(concat) # concat is out from text feature extractor (R^T)
+preds = Dense(1, activation='softmax', name="fake_news_detector")(concat) # concat is output from text feature extractor (in R^T space)
 # fake_news_detector = Model(sequence_input, preds, name="Fake News Detector")
 
 # Compile and fit fake news detector
@@ -46,6 +46,7 @@ neg_lambda = 1
 ed_reversal = GradientReversal(neg_lambda)(concat)
 ed_fc1_out = Dense(hl_size, activation='relu')(ed_reversal)
 ed_fc2_out = Dense(unique_events, activation='softmax', name="event_discriminator")(ed_fc1_out)
+print("unique_events", unique_events)
 # event_discrim = Model(sequence_input, ed_fc2_out, name="Event Discriminator")
 
 # Compile and fit the event discriminator
@@ -55,6 +56,7 @@ ed_fc2_out = Dense(unique_events, activation='softmax', name="event_discriminato
 # print(event_discrim.summary())
 # print(len(data_test))
 # print(len(subjects_test))
+# print(subjects_test.shape)
 # event_discrim.fit(data_train, subjects_train,
 #           batch_size=250,
 #           epochs=5,
@@ -75,7 +77,7 @@ f_model.compile(loss={"fake_news_detector" : 'binary_crossentropy', "event_discr
               metrics=['acc'])
 print(f_model.summary())
 f_model.fit(data_train, {"fake_news_detector" : labels_train, "event_discriminator" : subjects_train},
-		  batch_size=BATCH_SZ,
+      batch_size=BATCH_SZ,
           epochs=EPOCHS,
           validation_data=(data_test, {"fake_news_detector" : labels_test, "event_discriminator" : subjects_test})
           )
