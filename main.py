@@ -43,8 +43,8 @@ hl_size = 120 # TODO: Tune this hyperparameter
 neg_lambda = 1
 # TODO: Implement GRL here (identity on forward, multiply by neg lambda on backprop)
 # HINT: See https://github.com/michetonu/gradient_reversal_keras_tf for implmentation
-# ed_reversal = GradientReversal(neg_lambda)(concat)
-ed_fc1_out = Dense(hl_size, activation='relu')(concat)
+ed_reversal = GradientReversal(neg_lambda)(concat)
+ed_fc1_out = Dense(hl_size, activation='relu')(ed_reversal)
 ed_fc2_out = Dense(unique_events, activation='softmax', name="event_discriminator")(ed_fc1_out)
 # event_discrim = Model(sequence_input, ed_fc2_out, name="Event Discriminator")
 
@@ -71,12 +71,12 @@ decay_rate = 10 / iterations
 # Compile and fit the integrated model
 f_model = Model(inputs=[sequence_input],outputs=[preds,ed_fc2_out])
 f_model.compile(loss={"fake_news_detector" : 'binary_crossentropy', "event_discriminator" : 'categorical_crossentropy'},
-              optimizer=Adam(learning_rate=0.002, decay=decay_rate),
+              optimizer=Adam(learning_rate=0.002),
               metrics=['acc'])
 print(f_model.summary())
 f_model.fit(data_train, {"fake_news_detector" : labels_train, "event_discriminator" : subjects_train},
-		  batch_size=250,
-          epochs=5,
+		  batch_size=BATCH_SZ,
+          epochs=EPOCHS,
           validation_data=(data_test, {"fake_news_detector" : labels_test, "event_discriminator" : subjects_test})
           )
 # fnd_grad = K.gradients(fake_news_detector.output, fake_news_detector.trainable_weights)
