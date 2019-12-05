@@ -40,7 +40,7 @@ preds = Dense(1, activation='softmax', name="fake_news_detector")(concat) # conc
 
 # Event Discriminator Layers ---
 hl_size = 120 # TODO: Tune this hyperparameter
-neg_lambda = 1
+neg_lambda = 1 # the trade-off
 # TODO: Implement GRL here (identity on forward, multiply by neg lambda on backprop)
 # HINT: See https://github.com/michetonu/gradient_reversal_keras_tf for implmentation
 ed_reversal = GradientReversal(neg_lambda)(concat)
@@ -62,7 +62,13 @@ print("unique_events", unique_events)
 #           epochs=5,
 #           validation_data=(data_test, subjects_test))
 
-# TODO: Implement the model integration and minimax
+########################################################################################
+# TODO:
+#	- change final loss calculation (default (current) is addition, but we want subtraction)
+#	- tune hyperparameters
+#	- check functionality of gradient reversal layer
+#	- integrate decay rate into the optimizer
+########################################################################################
 
 # parameter for training
 EPOCHS = 5
