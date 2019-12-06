@@ -69,7 +69,6 @@ print("unique_events", unique_events)
 #	- change final loss calculation (default (current) is addition, but we want subtraction)
 #	- tune hyperparameters
 #	- check functionality of gradient reversal layer
-#	- integrate decay rate into the optimizer
 ########################################################################################
 
 # parameter for training
@@ -95,6 +94,7 @@ f_model = Model(inputs=[sequence_input], outputs=[preds,ed_fc2_out])
 f_model.compile(loss={"fake_news_detector" : 'binary_crossentropy', "event_discriminator" : 'categorical_crossentropy'},
               optimizer=Adam(),
               metrics=['acc'])
+
 # Create learning rate scheduler
 lrate = LearningRateScheduler(decay_lr)
 callbacks_list = [lrate]
