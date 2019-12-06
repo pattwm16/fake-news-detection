@@ -7,6 +7,8 @@ import keras.backend as K
 from gradient_flip import GradientReversal
 from math import floor
 from keras.callbacks import LearningRateScheduler
+from keras import losses
+import tensorflow as tf
 
 
 # import sys
@@ -28,20 +30,10 @@ sequence_input, concat = text_extract(data_train, data_test, labels_train, label
 #       not create a new file for it.
 # Fake News Detector Layers ---
 preds = Dense(1, activation='softmax', name="fake_news_detector")(concat) # concat is output from text feature extractor (in R^T space)
-# fake_news_detector = Model(sequence_input, preds, name="Fake News Detector")
 
-# Compile and fit fake news detector
-# fake_news_detector.compile(loss='binary_crossentropy',
-#               optimizer=Adam(learning_rate=0.002),
-#               metrics=['acc'])
-# print(fake_news_detector.summary())
-# fake_news_detector.fit(data_train, labels_train,
-#           batch_size=250,
-#           epochs=5,
-#           validation_data=(data_test, labels_test))
 
 # Event Discriminator Layers ---
-hl_size = 120 # TODO: Tune this hyperparameter
+hl_size = 64 # TODO: Tune this hyperparameter
 neg_lambda = 1 # the trade-off
 # TODO: Implement GRL here (identity on forward, multiply by neg lambda on backprop)
 # HINT: See https://github.com/michetonu/gradient_reversal_keras_tf for implmentation
@@ -49,20 +41,6 @@ ed_reversal = GradientReversal(neg_lambda)(concat)
 ed_fc1_out = Dense(hl_size, activation='relu')(ed_reversal)
 ed_fc2_out = Dense(unique_events, activation='softmax', name="event_discriminator")(ed_fc1_out)
 print("unique_events", unique_events)
-# event_discrim = Model(sequence_input, ed_fc2_out, name="Event Discriminator")
-
-# Compile and fit the event discriminator
-# event_discrim.compile(loss='categorical_crossentropy',
-#               optimizer=Adam(learning_rate=0.002),
-#               metrics=['acc'])
-# print(event_discrim.summary())
-# print(len(data_test))
-# print(len(subjects_test))
-# print(subjects_test.shape)
-# event_discrim.fit(data_train, subjects_train,
-#           batch_size=250,
-#           epochs=5,
-#           validation_data=(data_test, subjects_test))
 
 ########################################################################################
 # TODO:
@@ -73,9 +51,7 @@ print("unique_events", unique_events)
 
 # parameter for training
 EPOCHS = 5
-BATCH_SZ = 250
-iterations = EPOCHS * floor(data_train.shape[0] / BATCH_SZ)
-decay_rate = 10 / iterations
+BATCH_SZ = 100
 
 # Define learning rate decay schedule
 def decay_lr(epoch):
@@ -89,11 +65,28 @@ def decay_lr(epoch):
 	lrate = initial_lrate / ((1 + (alpha*p))**beta)
 	return lrate
 
+# Create custom loss function
+# NOTE: In paper they mention lambda is 1
+# lam = 1
+# def custom_loss(yTrue, yPred):
+# 	x1True = yTrue[0]
+# 	x2True = yTrue[1:]
+# 	print("x1", x1True.shape)
+# 	print("x2", x2True.shape)
+#
+# 	x1Pred = yPred[0]
+# 	x2Pred = yPred[1:]
+# 	print("x1p", x1Pred.shape)
+# 	print("x2p", x2Pred.shape)
+# 	return (tf.keras.losses.binary_crossentropy(x1True,x1Pred)) - lam*(tf.keras.losses.categorical_crossentropy(x2True,x2Pred, from_logits=False))
+
 # Compile and fit the integrated model
+# loss before: {"fake_news_detector" : 'binary_crossentropy', "event_discriminator" : 'categorical_crossentropy'}
 f_model = Model(inputs=[sequence_input], outputs=[preds,ed_fc2_out])
 f_model.compile(loss={"fake_news_detector" : 'binary_crossentropy', "event_discriminator" : 'categorical_crossentropy'},
-              optimizer=Adam(),
-              metrics=['acc'])
+				loss_weights = [-1, 1],
+				optimizer=Adam(),
+				metrics=['acc'])
 
 # Create learning rate scheduler
 lrate = LearningRateScheduler(decay_lr)
