@@ -6,6 +6,8 @@ from keras.optimizers import Adam
 import keras.backend as K
 from gradient_flip import GradientReversal
 from math import floor
+from keras.callbacks import LearningRateScheduler
+
 
 # import sys
 # import numpy
@@ -23,7 +25,7 @@ data_train, data_test, labels_train, labels_test, subjects_train, subjects_test,
 sequence_input, concat = text_extract(data_train, data_test, labels_train, labels_test, word_index)
 
 # NOTE: Since the size of the fake news detector was relatively small, we did
-# not create a new file for it.
+#       not create a new file for it.
 # Fake News Detector Layers ---
 preds = Dense(1, activation='softmax', name="fake_news_detector")(concat) # concat is output from text feature extractor (in R^T space)
 # fake_news_detector = Model(sequence_input, preds, name="Fake News Detector")
@@ -76,17 +78,35 @@ BATCH_SZ = 250
 iterations = EPOCHS * floor(data_train.shape[0] / BATCH_SZ)
 decay_rate = 10 / iterations
 
+# Define learning rate decay schedule
+def decay_lr(epoch):
+	initial_lrate = 2e-3
+	# alpha and beta are defined in paper
+	alpha = 10
+	beta = 0.75
+	# p is measure of training progress
+	# TODO: Is this based on epochs or # of examples seen?
+	p = float(epoch / EPOCHS)
+	lrate = initial_lrate / ((1 + (alpha*p))**beta)
+	return lrate
+
 # Compile and fit the integrated model
-f_model = Model(inputs=[sequence_input],outputs=[preds,ed_fc2_out])
+f_model = Model(inputs=[sequence_input], outputs=[preds,ed_fc2_out])
 f_model.compile(loss={"fake_news_detector" : 'binary_crossentropy', "event_discriminator" : 'categorical_crossentropy'},
-              optimizer=Adam(learning_rate=0.002),
+              optimizer=Adam(),
               metrics=['acc'])
+# Create learning rate scheduler
+lrate = LearningRateScheduler(decay_lr)
+callbacks_list = [lrate]
+
+# Print model summary
 print(f_model.summary())
+
+# Fit model
 f_model.fit(data_train, {"fake_news_detector" : labels_train, "event_discriminator" : subjects_train},
       batch_size=BATCH_SZ,
           epochs=EPOCHS,
-          validation_data=(data_test, {"fake_news_detector" : labels_test, "event_discriminator" : subjects_test})
+          validation_data=(data_test, {"fake_news_detector" : labels_test, "event_discriminator" : subjects_test}),
+          callbacks=callbacks_list
           )
 # fnd_grad = K.gradients(fake_news_detector.output, fake_news_detector.trainable_weights)
-
-
