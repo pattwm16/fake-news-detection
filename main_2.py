@@ -10,6 +10,8 @@ from gradient_flip import GradientReversal
 from math import floor
 from keras.callbacks import LearningRateScheduler
 from text_feature_extractor_2 import text_extract
+import keras
+import numpy as np
 
 class Extractor_Model(tf.keras.Model):
     def __init__(self, embedding_matrix):
@@ -70,46 +72,129 @@ class Detector_Model(tf.keras.Model):
 
     @tf.function
     def call(self, concat):
-        self.model(concat)
+        return self.model(concat)
     @tf.function
     def loss_function(self, probs, labels):
-        self.loss(probs, labels)
+        return tf.reduce_mean(self.loss(probs, labels))
 
 class Discriminator_Model(tf.keras.Model):
-    def __init__(self, unique_events):
+    def __init__(self, unique_events, hp_lambda):
         super(Discriminator_Model, self).__init__()
 
         #model
         self.model = Sequential()
-        self.model.add(GradientReversal())
+        self.model.add(GradientReversal(hp_lambda))
         self.model.add(layers.Dense(100, activation='relu'))
         self.model.add(layers.Dense(unique_events, activation='softmax'))
 
         #loss
-        self.loss = tf.keras.losses.BinaryCrossentropy()
+        self.loss = tf.keras.losses.CategoricalCrossentropy()
 
     @tf.function
     def call(self, concat):
-        self.model(concat)
+        return self.model(concat)
     @tf.function
     def loss_function(self, probs, labels):
-        self.loss(probs, labels)
+        return tf.reduce_mean(self.loss(probs, labels))
 
 # def optimize(tape, model, loss):
 #     gradients = tape.gradient(loss, model.trainable_variables)
 #     model.optimizer.apply_gradients(zip(gradients, model.trainable_variables)) #I don't think this will work
+
+def accuracy(true, pred):
+    return tf.reduce_mean(tf.argmax(pred, axis=1) == true)
+
+# Define learning rate decay schedule
+def decay_lr(epoch):
+    initial_lrate = 2e-3
+    # alpha and beta are defined in paper
+    alpha = 10
+    beta = 0.75
+    # p is measure of training progress
+    # TODO: Is this based on epochs or # of examples seen?
+    p = float(epoch / EPOCHS)
+    lrate = initial_lrate / ((1 + (alpha*p))**beta)
+    return lrate
 
 # path to training dataset
 train_path = "liar_dataset/train.tsv"
 test_path = "liar_dataset/test.tsv"
 valid_path = "liar_dataset/valid.tsv"
 
+# hyperparameters
+EPOCHS = 5
+BATCH_SZ = 100
+neg_lambda = 1
+
 data_train, data_test, labels_train, labels_test, subjects_train, subjects_test, word_index, unique_events = get_data(train_path, test_path, valid_path, verbose=True)
 embedding_matrix = text_extract(word_index)
 
 extractor = Extractor_Model(embedding_matrix)
-concat = extractor.call(data_train)
+detector = Detector_Model()
+discriminator = Discriminator_Model(unique_events, neg_lambda)
+# concat = extractor.call(data_train)
 
+labels_train = labels_train.values
+# subjects_train = subjects_train.values
+labels_test = labels_test.values
+# subjects_test = subjects_test.values
+
+DATA_TRAIN_SIZE = data_train.shape[0]
+ITERATIONS = floor(DATA_TRAIN_SIZE / BATCH_SZ)
+for ep in range(EPOCHS):
+    print("Epoch " + str(1+ep) + "/" + str(EPOCHS))
+    for i in range(ITERATIONS):
+        print(str((i+1) * BATCH_SZ) + "/" + str(DATA_TRAIN_SIZE))
+
+        batch_data = data_train[i * BATCH_SZ: (i+1) * BATCH_SZ]
+        batch_label = labels_train[i * BATCH_SZ: (i+1) * BATCH_SZ]
+        batch_subject = subjects_train[i * BATCH_SZ: (i+1) * BATCH_SZ]
+
+        lr = decay_lr(ep)
+
+        with tf.GradientTape(persistent=True) as tape:
+            concat = extractor.call(data_train)
+            output_d = detector.call(concat)
+            output_e = discriminator.call(concat)
+            print(output_d.shape)
+            loss_d = detector.loss(output_d, batch_label)
+            loss_e = discriminator.loss(output_e, batch_subject)
+            loss_f = loss_d - (neg_lambda * loss_e)
+
+        grad_f = tape.gradient(loss_f, extractor.trainable_variables)
+        grad_e = tape.gradient(loss_e, detector.trainable_variables)
+        grad_d = tape.gradient(loss_d, discriminator.trainable_variables)
+        Adam(lr).apply_gradients(zip(grad_f), extractor.trainable_variables)
+        Adam(lr).apply_gradients(zip(grad_e), detector.trainable_variables)
+        Adam(lr).apply_gradients(zip(grad_d), discriminator.trainable_variables)
+
+        # test
+        concat = extractor.call(data_test)
+        output_d = detector.call(concat)
+        output_e = discriminator.call(concat)
+        acc_d = accuracy(output_d, labels_test)
+        acc_e = accuracy(output_e, subjects_test)
+
+        # print loss & accuracy
+        tf.print(loss_d, loss_e, output_stream=sys.stdout, sep=',')
+        tf.print(acc_d, acc_e, output_stream=sys.stdout, sep=',')
+        # tf.print("fake_news_detector loss:", loss_d, "event_discriminator loss:", loss_e, "fake_news_detector accuracy:", acc_d, "event_discriminator accuracy:", acc_e, output_stream=sys.stdout, sep=',')
+
+
+# def accuracy(true, pred):
+#     return tf.reduce_mean(tf.argmax(pred, axis=1) == true)
+
+# # Define learning rate decay schedule
+# def decay_lr(epoch):
+#     initial_lrate = 2e-3
+#     # alpha and beta are defined in paper
+#     alpha = 10
+#     beta = 0.75
+#     # p is measure of training progress
+#     # TODO: Is this based on epochs or # of examples seen?
+#     p = float(epoch / EPOCHS)
+#     lrate = initial_lrate / ((1 + (alpha*p))**beta)
+#     return lrate
 
 #
 # def train(l):
