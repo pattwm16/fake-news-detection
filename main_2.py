@@ -9,7 +9,7 @@ import keras.backend as K
 from gradient_flip import GradientReversal
 from math import floor
 from keras.callbacks import LearningRateScheduler
-from text_feature_extractor import text_extract
+from text_feature_extractor_2 import text_extract
 
 class Extractor_Model(tf.keras.Model):
     def __init__(self, embedding_matrix):
