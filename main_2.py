@@ -18,7 +18,7 @@ class Extractor_Model(tf.keras.Model):
         super(Extractor_Model, self).__init__()
 
         #hyperparameters
-        num_filters = 100
+        num_filters = 10 # TODO: change back to 100
         sequence_length = 540
         embedding_dimension = 100
         num_words = 4860
@@ -45,13 +45,23 @@ class Extractor_Model(tf.keras.Model):
     @tf.function
     def call(self, inputs):
         embedded_sequences = self.model.call(inputs)
+        print("embedded seq finish")
+        print(embedded_sequences.shape)
         conv_2 = self.conv_2(embedded_sequences)
         conv_3 = self.conv_3(embedded_sequences)
         conv_4 = self.conv_4(embedded_sequences)
         conv_5 = self.conv_5(embedded_sequences)
         conv_6 = self.conv_6(embedded_sequences)
+        conv_2 = self.global_max_pool(conv_2)
+        conv_3 = self.global_max_pool(conv_3)
+        conv_4 = self.global_max_pool(conv_4)
+        conv_5 = self.global_max_pool(conv_5)
+        conv_6 = self.global_max_pool(conv_6)
+
+        print(conv_5.shape)
 
         concat = layers.concatenate([conv_2, conv_3, conv_4, conv_5, conv_6])
+        print("concatconcat")
 
         return concat
 
@@ -123,7 +133,7 @@ valid_path = "liar_dataset/valid.tsv"
 
 # hyperparameters
 EPOCHS = 5
-BATCH_SZ = 100
+BATCH_SZ = 128
 neg_lambda = 1
 
 data_train, data_test, labels_train, labels_test, subjects_train, subjects_test, word_index, unique_events = get_data(train_path, test_path, valid_path, verbose=True)
@@ -146,19 +156,31 @@ for ep in range(EPOCHS):
     for i in range(ITERATIONS):
         print(str((i+1) * BATCH_SZ) + "/" + str(DATA_TRAIN_SIZE))
 
-        batch_data = data_train[i * BATCH_SZ: (i+1) * BATCH_SZ]
-        batch_label = labels_train[i * BATCH_SZ: (i+1) * BATCH_SZ]
-        batch_subject = subjects_train[i * BATCH_SZ: (i+1) * BATCH_SZ]
+        print("got here")
+        batch_data = data_train[i * BATCH_SZ : (i+1) * BATCH_SZ]
+        print(batch_data.shape)
+        batch_label = labels_train[i * BATCH_SZ : (i+1) * BATCH_SZ]
+        print(batch_label.shape)
+        batch_subject = subjects_train[i * BATCH_SZ : (i+1) * BATCH_SZ]
+        print(batch_subject.shape)
 
         lr = decay_lr(ep)
 
+        print("here here")
         with tf.GradientTape(persistent=True) as tape:
-            concat = extractor.call(data_train)
+            concat = extractor.call(batch_data)
+            print("finished concat")
             output_d = detector.call(concat)
+            print("finished detector")
             output_e = discriminator.call(concat)
+            print("finished discriminator")
+            print(concat.shape)
             print(output_d.shape)
+            print(output_e.shape)
             loss_d = detector.loss(output_d, batch_label)
+            print(loss_d)
             loss_e = discriminator.loss(output_e, batch_subject)
+            print(loss_e)
             loss_f = loss_d - (neg_lambda * loss_e)
 
         grad_f = tape.gradient(loss_f, extractor.trainable_variables)
