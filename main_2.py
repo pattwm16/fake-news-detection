@@ -27,7 +27,8 @@ class Extractor_Model(tf.keras.Model):
         self.model = Sequential()
         self.model.add(layers.Embedding(input_dim=num_words, output_dim=embedding_dimension,
                                         embeddings_initializer=initializers.Constant(embedding_matrix),
-                                        input_length=sequence_length, trainable=False))
+                                        input_length=sequence_length, trainable=False,
+                                        dtype=tf.float32))
 
         self.conv_2 = layers.Conv1D(filters=num_filters, kernel_size=2, padding='same', activation='relu')
         self.conv_3 = layers.Conv1D(filters=num_filters, kernel_size=3, padding='same', activation='relu')
@@ -42,7 +43,7 @@ class Extractor_Model(tf.keras.Model):
 
         #loss ?????
 
-    @tf.function
+    #@tf.function
     def call(self, inputs):
         embedded_sequences = self.model.call(inputs)
         print("embedded seq finish")
@@ -75,17 +76,18 @@ class Detector_Model(tf.keras.Model):
 
         #model
         self.model = Sequential()
-        self.model.add(layers.Dense(1, activation='softmax'))
+        self.model.add(layers.Dense(1, activation='sigmoid'))
 
         #loss
         self.loss = tf.keras.losses.BinaryCrossentropy()
 
-    @tf.function
-    def call(self, concat):
-        return self.model(concat)
-    @tf.function
+    #@tf.function
+    def call(self, features):
+        return self.model(features)
+    #@tf.function
     def loss_function(self, probs, labels):
-        return tf.reduce_mean(self.loss(probs, labels))
+        return self.loss(probs, labels)
+        #return tf.reduce_mean(self.loss(probs, labels))
 
 class Discriminator_Model(tf.keras.Model):
     def __init__(self, unique_events, hp_lambda):
@@ -100,10 +102,10 @@ class Discriminator_Model(tf.keras.Model):
         #loss
         self.loss = tf.keras.losses.CategoricalCrossentropy()
 
-    @tf.function
-    def call(self, concat):
-        return self.model(concat)
-    @tf.function
+    #@tf.function
+    def call(self, features):
+        return self.model(features)
+    #@tf.function
     def loss_function(self, probs, labels):
         return tf.reduce_mean(self.loss(probs, labels))
 
@@ -161,6 +163,7 @@ for ep in range(EPOCHS):
         print(batch_data.shape)
         batch_label = labels_train[i * BATCH_SZ : (i+1) * BATCH_SZ]
         print(batch_label.shape)
+        batch_label = np.reshape(batch_label, (128))
         batch_subject = subjects_train[i * BATCH_SZ : (i+1) * BATCH_SZ]
         print(batch_subject.shape)
 
@@ -168,15 +171,20 @@ for ep in range(EPOCHS):
 
         print("here here")
         with tf.GradientTape(persistent=True) as tape:
-            concat = extractor.call(batch_data)
+            extracted_features = extractor.call(tf.cast(batch_data, tf.float32))
             print("finished concat")
-            output_d = detector.call(concat)
+            output_d = detector.call(extracted_features)
+            print("detector type", output_d)
             print("finished detector")
-            output_e = discriminator.call(concat)
+            output_e = discriminator.call(extracted_features)
             print("finished discriminator")
-            print(concat.shape)
+            print(extracted_features.shape)
             print(output_d.shape)
             print(output_e.shape)
+            print(output_d)
+            print(batch_label)
+            print(type(batch_label))
+            output_d = tf.reshape(output_d, [128])
             loss_d = detector.loss(output_d, batch_label)
             print(loss_d)
             loss_e = discriminator.loss(output_e, batch_subject)
@@ -191,9 +199,9 @@ for ep in range(EPOCHS):
         Adam(lr).apply_gradients(zip(grad_d), discriminator.trainable_variables)
 
         # test
-        concat = extractor.call(data_test)
-        output_d = detector.call(concat)
-        output_e = discriminator.call(concat)
+        extracted_features = extractor.call(data_test)
+        output_d = detector.call(extracted_features)
+        output_e = discriminator.call(extracted_features)
         acc_d = accuracy(output_d, labels_test)
         acc_e = accuracy(output_e, subjects_test)
 
