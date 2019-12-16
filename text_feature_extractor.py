@@ -1,14 +1,4 @@
-import pandas as pd
-from keras.preprocessing.text import Tokenizer, one_hot
-from keras.preprocessing.sequence import pad_sequences
-from keras.models import Sequential, Model
-from keras.layers import Embedding, Flatten, Dense, Input, GlobalMaxPooling1D, Conv1D, MaxPooling1D, Embedding, concatenate, Concatenate
-import keras
 import numpy as np
-from sklearn.model_selection import train_test_split
-import os
-import re
-from keras.initializers import Constant
 
 def text_extract(word_index):
     # hyperparameters
