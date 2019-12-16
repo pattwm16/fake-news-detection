@@ -84,18 +84,15 @@ class Detector_Model(tf.keras.Model):
 
     @tf.function
     def loss_function(self, probs, labels):
-        return tf.reduce_mean(self.loss(probs, labels))
+        return self.loss(probs, labels)
 
 class Discriminator_Model(tf.keras.Model):
     def __init__(self, unique_events):
         super(Discriminator_Model, self).__init__()
 
-        #hyperparameters
-        hp_lambda=1
-
         #model
         self.model = Sequential()
-        self.model.add(GradientReversal(hp_lambda))
+        self.model.add(GradientReversal())
         self.model.add(layers.Dense(100, activation="relu"))
         self.model.add(layers.Dense(unique_events, activation='softmax'))
 
